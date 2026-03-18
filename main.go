@@ -11,7 +11,7 @@ func main () {
 	const port = "8080"
 
 	httpServerMux := http.NewServeMux()
-	httpServerMux.Handle("/", http.FileServer(http.Dir(".")))
+	httpServerMux.Handle("/app/", http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 
 	httpServer := http.Server {
 		Addr: ":" + port,
