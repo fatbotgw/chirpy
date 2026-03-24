@@ -22,6 +22,7 @@ func main () {
 	httpServerMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 	httpServerMux.HandleFunc("/healthz", health)
 	httpServerMux.HandleFunc("/metrics", apiCfg.hits)
+	httpServerMux.HandleFunc("/reset", apiCfg.reset)
 
 
 	httpServer := http.Server {
@@ -43,6 +44,10 @@ func (cfg *apiConfig) hits(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)  // 200 OK status code
 	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())))
+}
+
+func (cfg *apiConfig) reset(w http.ResponseWriter, r *http.Request) {
+	cfg.fileserverHits.Store(0)
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
