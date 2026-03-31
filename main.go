@@ -21,8 +21,8 @@ func main () {
 	httpServerMux := http.NewServeMux()
 	httpServerMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 	httpServerMux.HandleFunc("GET /api/healthz", health)
-	httpServerMux.HandleFunc("GET /api/metrics", apiCfg.hits)
-	httpServerMux.HandleFunc("POST /api/reset", apiCfg.reset)
+	httpServerMux.HandleFunc("GET /admin/metrics", apiCfg.hits)
+	httpServerMux.HandleFunc("POST /admin/reset", apiCfg.reset)
 
 
 	httpServer := http.Server {
@@ -41,9 +41,14 @@ func health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) hits(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Add("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)  // 200 OK status code
-	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())))
+	w.Write([]byte(fmt.Sprintf(`<html>
+								  <body>
+								    <h1>Welcome, Chirpy Admin</h1>
+								    <p>Chirpy has been visited %d times!</p>
+								  </body>
+								</html>`, cfg.fileserverHits.Load())))
 }
 
 func (cfg *apiConfig) reset(w http.ResponseWriter, r *http.Request) {
