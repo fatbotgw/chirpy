@@ -123,3 +123,14 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.WriteHeader(code)
 	w.Write(dat)
 }
+
+
+func profaneWordCheck(body string) {
+	// look for:
+	// kerfuffle
+	// sharbert
+	// fornax
+
+	// replace with:
+	// ****		<- specifically 4 asterisks
+}
