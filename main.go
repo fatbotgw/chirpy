@@ -9,8 +9,10 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/fatbotgw/chirpy/internal/database"
+	"github.com/google/uuid"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -19,6 +21,14 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db *database.Queries
+	platform string
+}
+
+type User struct {
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
 }
 
 func main () {
@@ -28,6 +38,7 @@ func main () {
 	if err != nil {
 		log.Fatal(err)
 	}
+	platform := os.Getenv("PLATFORM")
 
 	dbQueries := database.New(db)
 
@@ -36,6 +47,7 @@ func main () {
 
 	apiCfg := apiConfig{
 		db: dbQueries,
+		platform: platform,
 	}
 
 	httpServerMux := http.NewServeMux()
@@ -44,6 +56,7 @@ func main () {
 	httpServerMux.HandleFunc("GET /admin/metrics", apiCfg.hits)
 	httpServerMux.HandleFunc("POST /admin/reset", apiCfg.reset)
 	httpServerMux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidateChirp)
+	httpServerMux.HandleFunc("POST /api/users", apiCfg.newUser)
 
 
 	httpServer := http.Server {
@@ -73,7 +86,11 @@ func (cfg *apiConfig) hits(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) reset(w http.ResponseWriter, r *http.Request) {
+	if cfg.platform != "dev" {
+		respondWithError(w, 403, "Forbidden")
+	}
 	cfg.fileserverHits.Store(0)
+	cfg.db.ResetUsers(r.Context())
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -168,4 +185,37 @@ func profaneWordCheck(body string) string {
 	}
 	
 	return strings.Join(tempWords, " ")
+}
+
+func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
+	// accepts an email as JSON in the request body and returns 
+	// the user's ID, email, and timestamps in the response body
+    type parameters struct {
+        Email string `json:"email"`
+    }
+
+    decoder := json.NewDecoder(r.Body)
+    params := parameters{}
+    err := decoder.Decode(&params)
+    if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		respondWithError(w, 500, "Error decoding parameters")
+		return
+    }
+
+	user, err := cfg.db.CreateUser(r.Context(), params.Email)
+	if err != nil {
+		log.Printf("Error retrieving user from database: %s", err)
+		respondWithError(w, 500, "Error retrieving user")
+		return
+	}
+
+	// maps the database package user to the main package user
+    respondWithJSON(w, 201, User{
+	    ID:        user.ID,
+	    CreatedAt: user.CreatedAt,
+	    UpdatedAt: user.UpdatedAt,
+	    Email: user.Email,
+	})
+
 }
