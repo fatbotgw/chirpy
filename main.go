@@ -57,6 +57,7 @@ func main () {
 	httpServerMux.HandleFunc("POST /admin/reset", apiCfg.reset)
 	httpServerMux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidateChirp)
 	httpServerMux.HandleFunc("POST /api/users", apiCfg.newUser)
+	httpServerMux.HandleFunc("POST /api/chirps", apiCfg.chirp)
 
 
 	httpServer := http.Server {
@@ -98,6 +99,11 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
         cfg.fileserverHits.Add(1)
 		next.ServeHTTP(w, r)
     })
+}
+
+func (cfg *apiConfig) chirp(w http.ResponseWriter, r *http.Request) {
+	// create a chirp
+	// also, move validate code here
 }
 
 func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
