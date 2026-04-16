@@ -55,9 +55,8 @@ func main () {
 	httpServerMux.HandleFunc("GET /api/healthz", health)
 	httpServerMux.HandleFunc("GET /admin/metrics", apiCfg.hits)
 	httpServerMux.HandleFunc("POST /admin/reset", apiCfg.reset)
-	httpServerMux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidateChirp)
 	httpServerMux.HandleFunc("POST /api/users", apiCfg.newUser)
-	httpServerMux.HandleFunc("POST /api/chirps", apiCfg.chirp)
+	httpServerMux.HandleFunc("POST /api/chirps", apiCfg.handlerChirp)
 
 
 	httpServer := http.Server {
@@ -101,12 +100,10 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
     })
 }
 
-func (cfg *apiConfig) chirp(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerChirp(w http.ResponseWriter, r *http.Request) {
 	// create a chirp
-	// also, move validate code here
-}
 
-func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
+	// also, move validate code here
     type parameters struct {
         Body string `json:"body"`
     }
@@ -134,7 +131,6 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Reques
     respondWithJSON(w, 200, validResponse{
 	    Valid: profaneWordCheck(params.Body),
 	})
-
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
