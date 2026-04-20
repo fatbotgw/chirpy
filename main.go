@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -102,10 +103,18 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 
 func (cfg *apiConfig) handlerChirp(w http.ResponseWriter, r *http.Request) {
 	// create a chirp
+	type Chirp struct {
+	    ID        uuid.UUID `json:"id"`
+	    CreatedAt time.Time `json:"created_at"`
+	    UpdatedAt time.Time `json:"updated_at"`
+	    Body      string    `json:"body"`
+	    UserID    uuid.UUID `json:"user_id"`
+	}
 
 	// also, move validate code here
     type parameters struct {
         Body string `json:"body"`
+        UserID uuid.UUID `json:"user_id"`
     }
 
     decoder := json.NewDecoder(r.Body)
@@ -123,14 +132,27 @@ func (cfg *apiConfig) handlerChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profaneWordCheck(params.Body)
-    
-    type validResponse struct {
-	    Valid string `json:"cleaned_body"`
+	newChirp := database.CreateChirpParams{
+		ID: 		uuid.New(),
+		CreatedAt: 	time.Now(),
+		UpdatedAt: 	time.Now(),
+		Body:		profaneWordCheck(params.Body),
+		UserID: 	params.UserID,
 	}
-    respondWithJSON(w, 200, validResponse{
-	    Valid: profaneWordCheck(params.Body),
-	})
+	chirpRow, err := cfg.db.CreateChirp(context.Background(), newChirp)
+	if err != nil {
+		log.Printf("Error creating db entry: %s", err)
+		return
+	}
+	chirpResponse := Chirp {
+		ID: chirpRow.ID,
+		CreatedAt: chirpRow.CreatedAt,
+		UpdatedAt: chirpRow.UpdatedAt,
+		Body: chirpRow.Body,
+		UserID: chirpRow.UserID,
+	}
+    
+	respondWithJSON(w, 201, chirpResponse)
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {

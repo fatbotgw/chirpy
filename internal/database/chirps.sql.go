@@ -17,10 +17,10 @@ INSERT INTO chirps (id,
                     created_at,
                     updated_at,
                     body,
-                    userid
+                    user_id
 )
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, created_at, updated_at, body, userid
+RETURNING id, created_at, updated_at, body, user_id
 `
 
 type CreateChirpParams struct {
@@ -28,7 +28,7 @@ type CreateChirpParams struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Body      string
-	Userid    uuid.UUID
+	UserID    uuid.UUID
 }
 
 func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp, error) {
@@ -37,7 +37,7 @@ func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp
 		arg.CreatedAt,
 		arg.UpdatedAt,
 		arg.Body,
-		arg.Userid,
+		arg.UserID,
 	)
 	var i Chirp
 	err := row.Scan(
@@ -45,7 +45,7 @@ func (q *Queries) CreateChirp(ctx context.Context, arg CreateChirpParams) (Chirp
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Body,
-		&i.Userid,
+		&i.UserID,
 	)
 	return i, err
 }
