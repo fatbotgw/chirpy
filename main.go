@@ -58,6 +58,7 @@ func main () {
 	httpServerMux.HandleFunc("POST /admin/reset", apiCfg.reset)
 	httpServerMux.HandleFunc("POST /api/users", apiCfg.newUser)
 	httpServerMux.HandleFunc("POST /api/chirps", apiCfg.handlerChirp)
+	httpServerMux.HandleFunc("GET /api/chirps", apiCfg.handlerChirps)
 
 
 	httpServer := http.Server {
@@ -209,6 +210,35 @@ func profaneWordCheck(body string) string {
 	}
 	
 	return strings.Join(tempWords, " ")
+}
+
+func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
+	type Chirp struct {
+	    ID        uuid.UUID `json:"id"`
+	    CreatedAt time.Time `json:"created_at"`
+	    UpdatedAt time.Time `json:"updated_at"`
+	    Body      string    `json:"body"`
+	    UserID    uuid.UUID `json:"user_id"`
+	}
+
+	chirpArray, err := cfg.db.GetAllChirps(r.Context())
+	if err != nil {
+		log.Printf("Error reading db entry: %s", err)
+		return
+	}
+
+	var responseChirps []Chirp
+	for _, chirp := range chirpArray {
+	    responseChirps = append(responseChirps, Chirp{
+	        ID: chirp.ID,
+	        CreatedAt: chirp.CreatedAt,
+	        UpdatedAt: chirp.UpdatedAt,
+	        Body: chirp.Body,
+	        UserID: chirp.UserID,
+	    })
+	}
+
+	respondWithJSON(w, 200, responseChirps)
 }
 
 func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
