@@ -59,6 +59,7 @@ func main () {
 	httpServerMux.HandleFunc("POST /api/users", apiCfg.newUser)
 	httpServerMux.HandleFunc("POST /api/chirps", apiCfg.handlerChirp)
 	httpServerMux.HandleFunc("GET /api/chirps", apiCfg.handlerChirps)
+	httpServerMux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpByID)
 
 
 	httpServer := http.Server {
@@ -272,4 +273,36 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 	    Email: user.Email,
 	})
 
+}
+
+func (cfg *apiConfig) handlerChirpByID(w http.ResponseWriter, r *http.Request) {
+	type Chirp struct {
+	    ID        uuid.UUID `json:"id"`
+	    CreatedAt time.Time `json:"created_at"`
+	    UpdatedAt time.Time `json:"updated_at"`
+	    Body      string    `json:"body"`
+	    UserID    uuid.UUID `json:"user_id"`
+	}
+
+	chirpString := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpString)
+	if err != nil {
+		log.Printf("Error converting chirpString to UUID: %s", err)
+	}
+
+	chirp, err := cfg.db.GetChirpByID(r.Context(), chirpID)	
+	if err != nil {
+		respondWithError(w, 404, "Chirp not found")
+		return
+	}
+
+	chirpResponse := Chirp {
+		ID: chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body: chirp.Body,
+		UserID: chirp.UserID,
+	}
+    
+	respondWithJSON(w, 200, chirpResponse)	
 }
