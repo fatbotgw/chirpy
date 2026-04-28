@@ -17,11 +17,10 @@ func CheckPasswordHash(password, hash string) (bool, error) {
 	// Use the argon2id.ComparePasswordAndHash function to compare the 
 	// password that the user entered in the HTTP request with the password 
 	// that is stored in the database
-	_, err := argon2id.ComparePasswordAndHash(password, hash)
+	checkResult, err := argon2id.ComparePasswordAndHash(password, hash)
 	if err != nil {
 		return false, err
 	}
 
-	return true, nil
+	return checkResult, nil
 }
-

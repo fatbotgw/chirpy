@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fatbotgw/chirpy/internal/database"
+	"github.com/fatbotgw/chirpy/internal/auth"
 	"github.com/google/uuid"
 
 	"github.com/joho/godotenv"
@@ -60,6 +61,7 @@ func main () {
 	httpServerMux.HandleFunc("POST /api/chirps", apiCfg.handlerChirp)
 	httpServerMux.HandleFunc("GET /api/chirps", apiCfg.handlerChirps)
 	httpServerMux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpByID)
+	httpServerMux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 
 
 	httpServer := http.Server {
@@ -246,7 +248,8 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 	// accepts an email as JSON in the request body and returns 
 	// the user's ID, email, and timestamps in the response body
     type parameters struct {
-        Email string `json:"email"`
+        Email string 	`json:"email"`
+        Password string `json:"password"`
     }
 
     decoder := json.NewDecoder(r.Body)
@@ -258,7 +261,17 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 		return
     }
 
-	user, err := cfg.db.CreateUser(r.Context(), params.Email)
+	hashedPass, err := auth.HashPassword(params.Password)
+	if err != nil {
+		log.Printf("Error hasing password: %s", err)
+		respondWithError(w, 500, "Error hashing password")
+		return
+	}
+
+	user, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
+		Email: params.Email,
+		HashedPassword: hashedPass,
+	})
 	if err != nil {
 		log.Printf("Error retrieving user from database: %s", err)
 		respondWithError(w, 500, "Error retrieving user")
@@ -267,11 +280,49 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 
 	// maps the database package user to the main package user
     respondWithJSON(w, 201, User{
-	    ID:        user.ID,
-	    CreatedAt: user.CreatedAt,
-	    UpdatedAt: user.UpdatedAt,
-	    Email: user.Email,
+	    ID:        	user.ID,
+	    CreatedAt: 	user.CreatedAt,
+	    UpdatedAt: 	user.UpdatedAt,
+	    Email:		user.Email,
 	})
+
+}
+
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
+    type parameters struct {
+        Email string 	`json:"email"`
+        Password string `json:"password"`
+    }
+
+    decoder := json.NewDecoder(r.Body)
+    params := parameters{}
+    err := decoder.Decode(&params)
+    if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		respondWithError(w, 500, "Error decoding parameters")
+		return
+    }
+
+	user, err := cfg.db.GetUserByPassword(r.Context(), params.Email)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	hashCheck, err := auth.CheckPasswordHash(params.Password, user.HashedPassword)
+
+	// maps the database package user to the main package user
+	if hashCheck {
+	    respondWithJSON(w, 200, User{
+		    ID:        	user.ID,
+		    CreatedAt: 	user.CreatedAt,
+		    UpdatedAt: 	user.UpdatedAt,
+		    Email:		user.Email,
+		})		
+	} else {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
 
 }
 
