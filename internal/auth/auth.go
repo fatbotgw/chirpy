@@ -5,6 +5,7 @@ import (
 
 	"github.com/alexedwards/argon2id"
 	"github.com/google/uuid"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func HashPassword(password string) (string, error) {
@@ -29,5 +30,16 @@ func CheckPasswordHash(password, hash string) (bool, error) {
 }
 
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (string, error) {
-	return "", nil
+
+	claims := &jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiresIn)),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		Issuer:    "chirpy-access",
+		Subject:   userID.String(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	ss, err := token.SignedString(tokenSecret)
+
+	return ss, err
 }
