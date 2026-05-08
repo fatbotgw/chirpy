@@ -1,11 +1,14 @@
 package auth
 
 import (
+	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/alexedwards/argon2id"
-	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 func HashPassword(password string) (string, error) {
@@ -68,5 +71,15 @@ func GetBearerToken(headers http.Header) (string, error) {
 	// parameter and return the TOKEN_STRING if it exists (stripping off the 
 	// Bearer prefix and whitespace). 
 	// 
+	// Bearer TOKEN_STRING
+	// 
 	// If the header doesn't exist, return an error.
+	tokenString := headers.Get("Authorization")
+	if tokenString == "" {
+		return "", errors.New("No authorization token")
+	}
+	token := strings.TrimPrefix(tokenString, "Bearer ")
+	token = strings.TrimSpace(token)
+
+	return token, nil
 }

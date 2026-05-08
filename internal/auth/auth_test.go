@@ -3,6 +3,7 @@ package auth
 import (
 	"testing"
 	"time"
+	"net/http"
 
 	"github.com/google/uuid"
 )
@@ -63,5 +64,31 @@ func TestExpiredToken(t *testing.T) {
 	_, err = ValidateJWT(newJWT, secret)
 	if err == nil {
 	    t.Errorf("Expected error but got none")
+	}
+}
+
+func TestGetToken(t *testing.T) {
+	inputToken := "Bearer abc123"
+	headers := http.Header{
+	    "Authorization": []string{inputToken},
+	}
+
+	tokenString, err := GetBearerToken(headers)
+	if err != nil {
+		t.Fatalf("Error retrieving token: %v", err)
+	}
+
+	if tokenString != "abc123" {
+		t.Errorf("expected %q, got %q", "abc123", tokenString)
+	}
+	return
+}
+
+func TestMissingAuthorization(t *testing.T) {
+	headers := http.Header{}
+	
+	tokenString, err := GetBearerToken(headers)
+	if err == nil {
+		t.Errorf("expected error, got %q", tokenString)
 	}
 }
