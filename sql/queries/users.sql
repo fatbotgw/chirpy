@@ -12,7 +12,7 @@ RETURNING *;
 -- name: ResetUsers :exec
 DELETE FROM users;
 
--- name: GetUserByPassword :one
+-- name: GetUserByEmail :one
 SELECT *
 FROM users
 WHERE email = $1;
