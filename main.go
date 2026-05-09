@@ -293,6 +293,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
     type parameters struct {
         Email string 	`json:"email"`
         Password string `json:"password"`
+        ExpiresInSeconds int `json:"expires_in_seconds"`
     }
 
     decoder := json.NewDecoder(r.Body)
@@ -304,26 +305,47 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
     }
 
-	user, err := cfg.db.GetUserByPassword(r.Context(), params.Email)
+	user, err := cfg.db.GetUserByEmail(r.Context(), params.Email)
 	if err != nil {
 		respondWithError(w, 401, "Unauthorized")
 		return
 	}
 
+	// check the password
 	hashCheck, err := auth.CheckPasswordHash(params.Password, user.HashedPassword)
+	if err != nil || !hashCheck {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	// calculate the time limit for token expiration
+    timeLimit := time.Hour
+	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
+		timeLimit = time.Second * time.Duration(params.ExpiresInSeconds)
+	}
+
+	// password should be good, now create the JWT
+	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, timeLimit)
+	if err != nil {
+		respondWithError(w, 500, "Unable to create token")
+		return
+	}
+
+	type response struct {
+	    User
+	    Token string `json:"token"`
+	}
 
 	// maps the database package user to the main package user
-	if hashCheck {
-	    respondWithJSON(w, 200, User{
+    respondWithJSON(w, 200, response{
+    	User:	User{
 		    ID:        	user.ID,
 		    CreatedAt: 	user.CreatedAt,
 		    UpdatedAt: 	user.UpdatedAt,
 		    Email:		user.Email,
-		})		
-	} else {
-		respondWithError(w, 401, "Unauthorized")
-		return
-	}
+				},
+		Token:	token,
+	})		
 
 }
 
