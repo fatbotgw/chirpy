@@ -116,15 +116,24 @@ func (cfg *apiConfig) handlerChirp(w http.ResponseWriter, r *http.Request) {
 	    UserID    uuid.UUID `json:"user_id"`
 	}
 
-	// also, move validate code here
     type parameters struct {
         Body string `json:"body"`
-        UserID uuid.UUID `json:"user_id"`
+    }
+
+    tokenString, err := auth.GetBearerToken(r.Header)
+    if err != nil {
+    	respondWithError(w, 401, "Unauthorized")
+    	return
+    }
+    validatedUuid, err := auth.ValidateJWT(tokenString, cfg.jwtSecret)
+    if err != nil {
+    	respondWithError(w, 401, "Unauthorized")
+    	return
     }
 
     decoder := json.NewDecoder(r.Body)
     params := parameters{}
-    err := decoder.Decode(&params)
+    err = decoder.Decode(&params)
     if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		respondWithError(w, 500, "Error decoding parameters")
@@ -142,7 +151,7 @@ func (cfg *apiConfig) handlerChirp(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: 	time.Now(),
 		UpdatedAt: 	time.Now(),
 		Body:		profaneWordCheck(params.Body),
-		UserID: 	params.UserID,
+		UserID: 	validatedUuid,
 	}
 	chirpRow, err := cfg.db.CreateChirp(context.Background(), newChirp)
 	if err != nil {
@@ -151,10 +160,10 @@ func (cfg *apiConfig) handlerChirp(w http.ResponseWriter, r *http.Request) {
 	}
 	chirpResponse := Chirp {
 		ID: chirpRow.ID,
-		CreatedAt: chirpRow.CreatedAt,
-		UpdatedAt: chirpRow.UpdatedAt,
-		Body: chirpRow.Body,
-		UserID: chirpRow.UserID,
+		CreatedAt: 	chirpRow.CreatedAt,
+		UpdatedAt: 	chirpRow.UpdatedAt,
+		Body: 		chirpRow.Body,
+		UserID: 	chirpRow.UserID,
 	}
     
 	respondWithJSON(w, 201, chirpResponse)
