@@ -302,7 +302,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
     type parameters struct {
         Email string 	`json:"email"`
         Password string `json:"password"`
-        ExpiresInSeconds int `json:"expires_in_seconds"`
     }
 
     decoder := json.NewDecoder(r.Body)
@@ -329,12 +328,9 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	// calculate the time limit for token expiration
     timeLimit := time.Hour
-	if params.ExpiresInSeconds > 0 && params.ExpiresInSeconds < 3600 {
-		timeLimit = time.Second * time.Duration(params.ExpiresInSeconds)
-	}
 
 	// password should be good, now create the JWT
-	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, timeLimit)
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, timeLimit)
 	if err != nil {
 		respondWithError(w, 500, "Unable to create token")
 		return
@@ -342,7 +338,20 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 
 	type response struct {
 	    User
-	    Token string `json:"token"`
+	    AccessToken string `json:"token"`
+	    RefreshToken string `json:"refresh_token"`
+	}
+
+	refreshToken := auth.MakeRefreshToken()
+	refreshTokenStruct := database.AddRefreshTokenParams {
+		Token:		refreshToken,
+		UserID:		user.ID,
+		ExpiresAt:	time.Now().Add(60 * 24 * time.Hour),
+	}
+	err = cfg.db.AddRefreshToken(r.Context(), refreshTokenStruct)
+	if err != nil {
+		respondWithError(w, 500, "Unable to insert refresh token into table")
+		return
 	}
 
 	// maps the database package user to the main package user
@@ -353,7 +362,8 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		    UpdatedAt: 	user.UpdatedAt,
 		    Email:		user.Email,
 				},
-		Token:	token,
+		AccessToken:	accessToken,
+		RefreshToken: 	refreshToken,
 	})		
 
 }
