@@ -63,6 +63,8 @@ func main () {
 	httpServerMux.HandleFunc("GET /api/chirps", apiCfg.handlerChirps)
 	httpServerMux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerChirpByID)
 	httpServerMux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+	httpServerMux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
+	httpServerMux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
 
 
 	httpServer := http.Server {
@@ -398,4 +400,52 @@ func (cfg *apiConfig) handlerChirpByID(w http.ResponseWriter, r *http.Request) {
 	}
     
 	respondWithJSON(w, 200, chirpResponse)	
+}
+
+func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
+
+	bearerToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	accessToken, err := cfg.db.GetUserFromRefreshToken(r.Context(), bearerToken)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+	if accessToken.RevokedAt.Valid {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+	if time.Now().After(accessToken.ExpiresAt) {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	type response struct {
+	    AccessToken string `json:"token"`
+	}
+
+	newAccessToken, err := auth.MakeJWT(accessToken.UserID, cfg.jwtSecret, time.Hour)
+
+    respondWithJSON(w, 200, response{
+		AccessToken:	newAccessToken,
+	})		
+
+}
+
+func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
+
+	accessToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	cfg.db.RevokeRefreshToken(r.Context(), accessToken)
+
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusNoContent)
 }
