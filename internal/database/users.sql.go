@@ -66,3 +66,19 @@ func (q *Queries) ResetUsers(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, resetUsers)
 	return err
 }
+
+const updatePasswordByEmail = `-- name: UpdatePasswordByEmail :exec
+UPDATE users
+SET hashed_password = $2, updated_at = NOW()
+WHERE email = $1
+`
+
+type UpdatePasswordByEmailParams struct {
+	Email          string
+	HashedPassword string
+}
+
+func (q *Queries) UpdatePasswordByEmail(ctx context.Context, arg UpdatePasswordByEmailParams) error {
+	_, err := q.db.ExecContext(ctx, updatePasswordByEmail, arg.Email, arg.HashedPassword)
+	return err
+}
