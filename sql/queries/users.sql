@@ -17,7 +17,12 @@ SELECT *
 FROM users
 WHERE email = $1;
 
--- name: UpdatePasswordByEmail :exec
+-- name: UpdatePasswordByID :exec
 UPDATE users
-SET hashed_password = $2, updated_at = NOW()
-WHERE email = $1;
+SET email = $2, hashed_password = $3, updated_at = NOW()
+WHERE id = $1;
+
+-- name: GetUserByID :one
+SELECT *
+FROM users
+WHERE id = $1;

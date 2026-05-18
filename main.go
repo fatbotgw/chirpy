@@ -65,6 +65,7 @@ func main () {
 	httpServerMux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
 	httpServerMux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
 	httpServerMux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
+	httpServerMux.HandleFunc("PUT /api/users", apiCfg.handlerUserUpdate)
 
 
 	httpServer := http.Server {
@@ -366,7 +367,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 				},
 		AccessToken:	accessToken,
 		RefreshToken: 	refreshToken,
-	})		
+	})
 
 }
 
@@ -432,7 +433,7 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 
     respondWithJSON(w, 200, response{
 		AccessToken:	newAccessToken,
-	})		
+	})
 
 }
 
@@ -448,4 +449,69 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (cfg *apiConfig) handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
+	// user and password management
+	// 
+	// requires an access token
+	// a new user and password in the header body
+
+    tokenString, err := auth.GetBearerToken(r.Header)
+    if err != nil {
+    	respondWithError(w, 401, "Unauthorized")
+    	return
+    }
+    validatedUuid, err := auth.ValidateJWT(tokenString, cfg.jwtSecret)
+    if err != nil {
+    	log.Printf("Error validating UUID: %s", err)
+    	respondWithError(w, 401, "Unauthorized")
+    	return
+    }
+
+    type parameters struct {
+        Email string 	`json:"email"`
+        Password string `json:"password"`
+    }
+
+    decoder := json.NewDecoder(r.Body)
+    params := parameters{}
+    err = decoder.Decode(&params)
+    if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		respondWithError(w, 500, "Error decoding parameters")
+		return
+    }
+
+	user, err := cfg.db.GetUserByID(r.Context(), validatedUuid)
+	if err != nil {
+		respondWithError(w, 401, "Unauthorized")
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		log.Printf("Error hashing password: %s", err)
+		respondWithError(w, 500, "Error updating password")
+		return
+	}
+
+	err = cfg.db.UpdatePasswordByID(r.Context(), database.UpdatePasswordByIDParams{
+		ID: 			validatedUuid,
+		Email:			params.Email,
+		HashedPassword: hashedPassword,
+	})
+	if err != nil {
+		log.Printf("Error updating password: %s", err)
+		respondWithError(w, 500, "Error updating password")
+		return
+	}
+
+    respondWithJSON(w, 200, User{
+	    ID:        	user.ID,
+	    CreatedAt: 	user.CreatedAt,
+	    UpdatedAt: 	user.UpdatedAt,
+	    Email:		params.Email,
+	})
+
 }
