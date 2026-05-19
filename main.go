@@ -66,6 +66,7 @@ func main () {
 	httpServerMux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
 	httpServerMux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
 	httpServerMux.HandleFunc("PUT /api/users", apiCfg.handlerUserUpdate)
+	httpServerMux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerChirpByIDDelete)
 
 
 	httpServer := http.Server {
@@ -514,4 +515,40 @@ func (cfg *apiConfig) handlerUserUpdate(w http.ResponseWriter, r *http.Request) 
 	    Email:		params.Email,
 	})
 
+}
+
+func (cfg *apiConfig) handlerChirpByIDDelete(w http.ResponseWriter, r *http.Request) {
+    tokenString, err := auth.GetBearerToken(r.Header)
+    if err != nil {
+    	respondWithError(w, 401, "Unauthorized")
+    	return
+    }
+    validatedUuid, err := auth.ValidateJWT(tokenString, cfg.jwtSecret)
+    if err != nil {
+    	log.Printf("Error validating UUID: %s", err)
+    	respondWithError(w, 401, "Unauthorized")
+    	return
+    }
+
+	chirpString := r.PathValue("chirpID")
+	chirpID, err := uuid.Parse(chirpString)
+	if err != nil {
+		log.Printf("Error converting chirpString to UUID: %s", err)
+	}
+
+	chirpUserID, err := cfg.db.GetChirpByID(r.Context(), chirpID)
+
+	if validatedUuid != chirpUserID.UserID {
+		respondWithError(w, 403, "Forbidden")
+		return
+	}
+
+	err = cfg.db.DeleteChirpByID(r.Context(), chirpID)	
+	if err != nil {
+		respondWithError(w, 404, "Chirp not found")
+		return
+	}
+
+	// return status code 204
+	w.WriteHeader(204)
 }
