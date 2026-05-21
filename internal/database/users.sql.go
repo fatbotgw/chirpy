@@ -20,7 +20,7 @@ VALUES (
     $1,
     $2
 )
-RETURNING id, created_at, updated_at, email, hashed_password
+RETURNING id, created_at, updated_at, email, hashed_password, is_chirpy_red
 `
 
 type CreateUserParams struct {
@@ -37,12 +37,24 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
 
+const downgradeUserFromRed = `-- name: DowngradeUserFromRed :exec
+UPDATE users
+SET is_chirpy_red = FALSE
+WHERE id = $1
+`
+
+func (q *Queries) DowngradeUserFromRed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, downgradeUserFromRed, id)
+	return err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, created_at, updated_at, email, hashed_password
+SELECT id, created_at, updated_at, email, hashed_password, is_chirpy_red
 FROM users
 WHERE email = $1
 `
@@ -56,12 +68,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, created_at, updated_at, email, hashed_password
+SELECT id, created_at, updated_at, email, hashed_password, is_chirpy_red
 FROM users
 WHERE id = $1
 `
@@ -75,6 +88,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.UpdatedAt,
 		&i.Email,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }
@@ -102,5 +116,16 @@ type UpdatePasswordByIDParams struct {
 
 func (q *Queries) UpdatePasswordByID(ctx context.Context, arg UpdatePasswordByIDParams) error {
 	_, err := q.db.ExecContext(ctx, updatePasswordByID, arg.ID, arg.Email, arg.HashedPassword)
+	return err
+}
+
+const upgradeUserToRed = `-- name: UpgradeUserToRed :exec
+UPDATE users
+SET is_chirpy_red = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) UpgradeUserToRed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, upgradeUserToRed, id)
 	return err
 }

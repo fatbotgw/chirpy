@@ -26,3 +26,13 @@ WHERE id = $1;
 SELECT *
 FROM users
 WHERE id = $1;
+
+-- name: UpgradeUserToRed :exec
+UPDATE users
+SET is_chirpy_red = TRUE
+WHERE id = $1;
+
+-- name: DowngradeUserFromRed :exec
+UPDATE users
+SET is_chirpy_red = FALSE
+WHERE id = $1;
