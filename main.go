@@ -67,6 +67,7 @@ func main () {
 	httpServerMux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
 	httpServerMux.HandleFunc("PUT /api/users", apiCfg.handlerUserUpdate)
 	httpServerMux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerChirpByIDDelete)
+	httpServerMux.HandleFunc("POST /api/polka/webhooks", apiCfg.handlerWebhooks)
 
 
 	httpServer := http.Server {
@@ -551,4 +552,20 @@ func (cfg *apiConfig) handlerChirpByIDDelete(w http.ResponseWriter, r *http.Requ
 
 	// return status code 204
 	w.WriteHeader(204)
+}
+
+func (cfg *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
+	// {
+	//   "event": "user.upgraded",
+	//   "data": {
+	//     "user_id": "3311741c-680c-4546-99f3-fc9efac2036c"
+	//   }
+	// }
+
+	// if event is not user.upgraded, return 204
+
+	// if event is user.upgraded, mark user as Chirpy Red member
+
+	// if successful, return 204
+	// if user not found, return 404
 }
