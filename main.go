@@ -32,6 +32,7 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	ChirpyRed bool		`json:"is_chirpy_red"`
 }
 
 func main () {
@@ -299,6 +300,7 @@ func (cfg *apiConfig) newUser(w http.ResponseWriter, r *http.Request) {
 	    CreatedAt: 	user.CreatedAt,
 	    UpdatedAt: 	user.UpdatedAt,
 	    Email:		user.Email,
+	    ChirpyRed:	user.IsChirpyRed.Bool,
 	})
 
 }
@@ -366,6 +368,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		    CreatedAt: 	user.CreatedAt,
 		    UpdatedAt: 	user.UpdatedAt,
 		    Email:		user.Email,
+		    ChirpyRed:	user.IsChirpyRed.Bool,
 				},
 		AccessToken:	accessToken,
 		RefreshToken: 	refreshToken,
@@ -514,6 +517,7 @@ func (cfg *apiConfig) handlerUserUpdate(w http.ResponseWriter, r *http.Request) 
 	    CreatedAt: 	user.CreatedAt,
 	    UpdatedAt: 	user.UpdatedAt,
 	    Email:		params.Email,
+	    ChirpyRed:	user.IsChirpyRed.Bool,
 	})
 
 }
@@ -568,4 +572,32 @@ func (cfg *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
 
 	// if successful, return 204
 	// if user not found, return 404
+
+    type userID struct {
+    	UserId uuid.UUID `json:"user_id"`
+    }
+
+	type parameters struct {
+        Event string 	`json:"event"`
+		Data userID		`json:"data"`
+    }
+
+    decoder := json.NewDecoder(r.Body)
+    params := parameters{}
+    err := decoder.Decode(&params)
+    if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		respondWithError(w, 500, "Error decoding parameters")
+		return
+    }
+
+    if params.Event != "user.upgraded" {
+    	w.WriteHeader(204)
+    }
+
+    err = cfg.db.UpgradeUserToRed(r.Context(), params.Data.UserId)
+    if err != nil {
+    	respondWithError(w, 404, "User not found")
+    }
+    w.WriteHeader(204)
 }
