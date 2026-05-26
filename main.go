@@ -575,6 +575,16 @@ func (cfg *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
 	// if successful, return 204
 	// if user not found, return 404
 
+    headerApiKey, err := auth.GetAPIKey(r.Header)
+    if err != nil {
+    	respondWithError(w, 401, "Unauthorized")
+    	return
+    }
+    if headerApiKey != cfg.polkaKey {
+    	respondWithError(w, 401, "Unauthorized")
+    	return
+    }
+
     type userID struct {
     	UserId uuid.UUID `json:"user_id"`
     }
@@ -586,7 +596,7 @@ func (cfg *apiConfig) handlerWebhooks(w http.ResponseWriter, r *http.Request) {
 
     decoder := json.NewDecoder(r.Body)
     params := parameters{}
-    err := decoder.Decode(&params)
+    err = decoder.Decode(&params)
     if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		respondWithError(w, 500, "Error decoding parameters")
