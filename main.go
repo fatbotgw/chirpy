@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/fatbotgw/chirpy/internal/database"
 	"github.com/fatbotgw/chirpy/internal/auth"
+	"github.com/fatbotgw/chirpy/internal/database"
 	"github.com/google/uuid"
 
 	"github.com/joho/godotenv"
@@ -242,10 +243,28 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	    UserID    uuid.UUID `json:"user_id"`
 	}
 
-	chirpArray, err := cfg.db.GetAllChirps(r.Context())
-	if err != nil {
-		log.Printf("Error reading db entry: %s", err)
-		return
+	authorIdParam := r.URL.Query().Get("author_id")
+	chirpArray := []database.Chirp{}
+	err := errors.New("")
+
+	if authorIdParam != "" {
+		authorID, err := uuid.Parse(authorIdParam)
+		if err != nil {
+			log.Printf("Error converting chirpString to UUID: %s", err)
+		}
+		// return only chirps by the author
+		chirpArray, err = cfg.db.GetChirpsByAuthorID(r.Context(), authorID)
+		if err != nil {
+			log.Printf("Error reading db entry: %s", err)
+			return
+		}
+	} else {
+		// returns all chirps
+		chirpArray, err = cfg.db.GetAllChirps(r.Context())
+		if err != nil {
+			log.Printf("Error reading db entry: %s", err)
+			return
+		}		
 	}
 
 	var responseChirps []Chirp
