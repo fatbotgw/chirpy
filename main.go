@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -265,6 +266,18 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error reading db entry: %s", err)
 			return
 		}		
+	}
+
+	sortParam := r.URL.Query().Get("sort")
+	
+	// this sort requires the database query to use
+	// 'ORDER BY chirps.created_at ASC'
+	// if the database query is changed, this sort must be changed as well
+	if sortParam == "desc" {
+		// sort descending
+		sort.Slice(chirpArray, func(i, j int) bool {
+			return chirpArray[i].CreatedAt.After(chirpArray[j].CreatedAt)
+		})
 	}
 
 	var responseChirps []Chirp
